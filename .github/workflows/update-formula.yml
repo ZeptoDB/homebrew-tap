@@ -1,0 +1,89 @@
+name: Update Formula
+
+on:
+  repository_dispatch:
+    types: [release-published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.0.2)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            TAG="${{ github.event.client_payload.tag }}"
+          else
+            TAG="${{ inputs.tag }}"
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download and hash tarballs
+        id: hash
+        run: |
+          VER="${{ steps.ver.outputs.version }}"
+          BASE="https://github.com/ZeptoDB/ZeptoDB/releases/download/v${VER}"
+
+          curl -sL "${BASE}/zeptodb-linux-amd64-${VER}.tar.gz" -o amd64.tar.gz
+          curl -sL "${BASE}/zeptodb-linux-arm64-${VER}.tar.gz" -o arm64.tar.gz
+
+          echo "sha_amd64=$(sha256sum amd64.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "sha_arm64=$(sha256sum arm64.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Formula
+        run: |
+          VER="${{ steps.ver.outputs.version }}"
+          cat > Formula/zeptodb.rb << 'RUBY'
+          class Zeptodb < Formula
+            desc "Ultra-low latency in-memory time-series database"
+            homepage "https://zeptodb.github.io"
+            version "VER_PLACEHOLDER"
+            license "Apache-2.0"
+
+            on_linux do
+              if Hardware::CPU.intel?
+                url "https://github.com/ZeptoDB/ZeptoDB/releases/download/vVER_PLACEHOLDER/zeptodb-linux-amd64-VER_PLACEHOLDER.tar.gz"
+                sha256 "SHA_AMD64"
+              end
+              if Hardware::CPU.arm?
+                url "https://github.com/ZeptoDB/ZeptoDB/releases/download/vVER_PLACEHOLDER/zeptodb-linux-arm64-VER_PLACEHOLDER.tar.gz"
+                sha256 "SHA_ARM64"
+              end
+            end
+
+            def install
+              bin.install "zepto_http_server"
+              bin.install "zepto_data_node"
+              bin.install "zepto_flight_server"
+              bin.install "zepto-cli" => "zeptodb"
+            end
+
+            test do
+              assert_predicate bin/"zeptodb", :executable?
+            end
+          end
+          RUBY
+
+          sed -i "s/VER_PLACEHOLDER/${VER}/g" Formula/zeptodb.rb
+          sed -i "s/SHA_AMD64/${{ steps.hash.outputs.sha_amd64 }}/g" Formula/zeptodb.rb
+          sed -i "s/SHA_ARM64/${{ steps.hash.outputs.sha_arm64 }}/g" Formula/zeptodb.rb
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/zeptodb.rb
+          git commit -m "formula: update zeptodb to ${{ steps.ver.outputs.version }}" || exit 0
+          git push
