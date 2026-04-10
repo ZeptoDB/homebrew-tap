@@ -1,17 +1,17 @@
 class Zeptodb < Formula
   desc "Ultra-low latency in-memory time-series database"
   homepage "https://zeptodb.github.io"
-  version "0.0.2"
+  version "0.0.3"
   license "Apache-2.0"
 
   on_linux do
     if Hardware::CPU.intel?
-      url "https://github.com/ZeptoDB/ZeptoDB/releases/download/v0.0.2/zeptodb-linux-amd64-0.0.2.tar.gz"
-      sha256 "f9e02b5e275ab6b627b7ff10429ee91d842b53242ea442466e6e3837079ca206"
+      url "https://github.com/ZeptoDB/ZeptoDB/releases/download/v0.0.3/zeptodb-linux-amd64-0.0.3.tar.gz"
+      sha256 "f560635b6a46f1fea441e55a09e976ed9fe9878e4ee629325530f2d569203f0d"
     end
     if Hardware::CPU.arm?
-      url "https://github.com/ZeptoDB/ZeptoDB/releases/download/v0.0.2/zeptodb-linux-arm64-0.0.2.tar.gz"
-      sha256 "e4a282d4b0ee53ab42b23291ed5d1dab822eb4a18bdba3381f961527c7eaf16f"
+      url "https://github.com/ZeptoDB/ZeptoDB/releases/download/v0.0.3/zeptodb-linux-arm64-0.0.3.tar.gz"
+      sha256 "9dfaca1707bd7ec397c741129ed651b3f643a388a2b798e8169c358bc3140035"
     end
   end
 
